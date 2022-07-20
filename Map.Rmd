@@ -1,0 +1,60 @@
+---
+title: "Map"
+author: "Eva Wu"
+date: '2022-07-19'
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(urbnmapr)
+library(colorspace)
+```
+
+```{r load}
+business_county <- read_csv("business.csv")
+
+business_state <- read_csv("business.csv") %>% 
+  mutate(state_fips = substr(FIPS, 1, 2)) %>% 
+  group_by(State, state_fips, ds, business_vertical) %>%
+  summarize(state_activity = mean(activity_quantile, na.rm = TRUE))
+
+# import sf for the county-level map
+counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
+states_sf <- get_urbn_map(map = "states", sf = TRUE)
+# join activity w/ geographical shape
+
+counties_act <- left_join(counties_sf, business_county, by = c("county_fips" = "FIPS"))
+states_act <- left_join(states_sf, business_state)
+```
+
+```{r plot}
+states_act %>%
+  filter(ds == "2020-03-01" & business_vertical == "Restaurants") %>%
+  ggplot() +
+  geom_sf(mapping = aes(fill = state_activity, color = state_activity)) +
+  scale_fill_continuous_diverging(palette = "Blue-Red 3", 
+                                  aesthetics = c("color", "fill"),
+                                  mid = 0.5) + # make color & fill consistent
+  theme_void() +
+  labs(title = "Map showing state-level business activity for restaurants",
+       fill = "Activity quantile", color = "Activity quantile") +
+  theme(legend.position = "left")
+
+counties_act %>%
+  filter(ds == "2020-03-01" & business_vertical == "Restaurants") %>%
+  ggplot() +
+  geom_sf(data = counties_sf, fill = "grey50", color = "grey50") +
+  geom_sf(mapping = aes(fill = activity_quantile, color = activity_quantile)) +
+  scale_fill_continuous_diverging(palette = "Blue-Red 3", 
+                                  aesthetics = c("color", "fill"),
+                                  mid = 0.5) + # make color & fill consistent
+  theme_void() +
+  labs(title = "Map showing county-level business activity for restaurants",
+       fill = "Activity quantile", color = "Activity quantile") +
+  theme(legend.position = "left")
+```
+
+
+
